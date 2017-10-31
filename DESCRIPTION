@@ -1,0 +1,12 @@
+Package: CoverTree
+Type: Package
+Title: Cover Tree Generator
+Version: 0.1.0
+Author: Mike Mayer
+Maintainer: Mike Mayer <mmayer@sphereoi.com>
+Description: Implentation of a cover tree based on algorithms defined in
+    Alina Beygelzimer, Sham Kakade, and John Langford: 108. Cover Trees for Nearest Neighbor. (Web)"
+License: n/a
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 6.0.1
