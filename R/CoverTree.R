@@ -223,3 +223,35 @@ as.nodes.CoverTree <- function(self)
   return(nodes)
 }
 
+#' @export
+as.hclust <- function(self)
+{
+  UseMethod('as.hclust',self)
+}
+
+#' Dendragram data
+#'
+#' @details Returns a data structure that can be plotted as hclust dendragrams
+#' @param ct The CoverTree to be converted to be converted
+#' @return data structure that can be plotted as a dendragram
+#' @usage
+#' \code{> hc <- as.hclust(ct)}
+#' \code{> plot(hc) }
+#' @export
+as.hclust.CoverTree <- function(self)
+{
+  nodes <- as.nodes(self)
+  nodes <- nodes[ order(-nodes$level,nodes$parent), ]
+  n     <- nrow(nodes)
+  nodes$node    <- as.numeric( rownames(nodes) )
+  nodes$cluster <- rep(NA,n)
+
+  for( i in 1:n-1 )
+  {
+    node   <- nodes$node[i]
+    parent <- nodes$parent[i]
+
+
+  }
+}
+

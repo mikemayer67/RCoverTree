@@ -153,8 +153,8 @@ node.print <- function(node,prefix)
 #' @export
 node_to_dataframe <- function(node)
 {
-  p <- ifelse(node$isRoot, 0, node$parent$row)
-  d <- ifelse(node$isRoot, 0, node$distance)
+  p <- ifelse(node$isRoot, NA, node$parent$row)
+  d <- ifelse(node$isRoot, NA, node$distance)
   rval <- data.frame( row=node$row, level=node$level, parent=p, distance=d)
 
   for(level in ls(node$children))
