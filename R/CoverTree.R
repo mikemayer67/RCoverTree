@@ -30,7 +30,7 @@
 #' @return An initialized CoverTree as described above
 #' @usage ct <- CoverTree(data,dist.func)
 #' @export
-CoverTree <- function(data,distance)
+CoverTree <- function(data,dist.func)
 {
   self  <- environment()
 
@@ -38,9 +38,9 @@ CoverTree <- function(data,distance)
   {
     stop(paste("Data must be a data.frame, not a",class(data)))
   }
-  if(is.function(distance) == FALSE)
+  if(is.function(dist.func) == FALSE)
   {
-    stop(paste("Distance must be a function, not a",class(distance)))
+    stop(paste("dist.func must be a function, not a",class(dist.func)))
   }
   if(nrow(data)<2)
   {
@@ -48,10 +48,12 @@ CoverTree <- function(data,distance)
   }
 
   nodeCount <- nrow(data)
+  dist.func <- dist.func
+  data      <- data
 
   root <- CoverTreeNode(1,data[1,])
 
-  addChild(root,2,data[2,],distance(data[1,],data[2,]))
+  addChild(root,2,data[2,],dist.func(data[1,],data[2,]))
 
   for( row in 3:nodeCount )
   {
@@ -63,11 +65,56 @@ CoverTree <- function(data,distance)
   return(self)
 }
 
+#' @export
+add.data <- function(self,data)
+{
+  UseMethod('add.data',self)
+}
+
+#' Add Data
+#'
+#' Inserts additional data into the cover tree.
+#' 
+#' @details 
+#' The column names in the input data frame must exactly match those in the data used to create
+#' the CoverTree object.
+#'
+#' Redundant data will not be added to the cover tree.
+#'
+#' @param ct The CoverTree to be displayed
+#' @param data a data.frame containing the data to be added to the cover tree
+#' @return n/a
+#' @usage  add.data(ct,data)
+#' @export
+add.data.CoverTree <- function(self,data)
+{
+  if(is.data.frame(data) == FALSE)
+  {
+    stop(paste("Data must be a data.frame, not a",class(data)))
+  }
+  if( all(names(data)==names(self$data)) == FALSE )
+  {
+    stop(paste("Data must match existing data in CoverTree: ",paste(names(self$root$data),collapse=", ")))
+  }
+  n.old <- nrow(self$data)
+  n.new <- nrow(data)
+
+  rows.new <- (n.old+1):(n.old+n.new)
+
+  self$data <- rbind(self$data,data)
+
+  rownames(data) <- rows.new
+  for( row in rows.new )
+  {
+    addRow(self, row, self$data[row,])
+  }
+}
+
 addRow <- function(self,row,data)
 {
   root <- self$root
 
-  rootDist = self$distance(data,root$data)
+  rootDist = self$dist.func(data,root$data)
 
   if(rootDist > 0)
   {
@@ -111,7 +158,7 @@ insert <- function(self,row,data,Qi.nodes,Qi.dists,level)
     {
       for(q in children)
       {
-        dist <- self$distance(data,q$data)
+        dist <- self$dist.func(data,q$data)
         if( dist == 0.0 ) { return(TRUE) }
 
         if(dist <= sep)
@@ -142,9 +189,15 @@ insert <- function(self,row,data,Qi.nodes,Qi.dists,level)
 #' \emph{or}
 #' \code{> ct}
 #' @export
-print.CoverTree <- function(ct)
+print.CoverTree <- function(self)
 {
-  print(ct$root)
+  print(self$root)
+}
+
+#' @export
+as.nodes <- function(x)
+{
+  UseMethod('as.nodes',x)
 }
 
 #' CoverTree node list
@@ -160,9 +213,9 @@ print.CoverTree <- function(ct)
 #' @param ct The CoverTree containing the nodes
 #' @return data.frame with columns: parent, level, distance
 #' @export
-as.nodes <- function(ct)
+as.nodes.CoverTree <- function(self)
 {
-  nodes <- node_to_dataframe(ct$root)
+  nodes <- node_to_dataframe(self$root)
   nodes <- nodes[ order(nodes$row), ]
   rownames(nodes) <- nodes$row
   nodes$row <- NULL
