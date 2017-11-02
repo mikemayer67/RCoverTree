@@ -4,7 +4,7 @@
 \alias{CoverTree}
 \title{Cover Tree}
 \usage{
-ct <- CoverTree(data,dist.func)
+ct <- CoverTree(data,dist.func[,param])
 }
 \arguments{
 \item{data}{a data.frame containing the data to be covered}
@@ -31,13 +31,18 @@ The provided data must be a data.frame with at least two rows of unique data.
 For the purpose of the CoverTree algorithm, unique data means having a non-zero separation.
 \strong{Redundant data will not be added to the cover tree}.
 
-The provided distance function must take two rows from the input data as
+The provided distance function \strong{must} take two rows from the input data as
 arguments and must return a distance.   The returned distance must:
 \itemize{
 \item{be non-negative}
 \item{be symmetric: \emph{dist(a,b) = dist(b,a)}}
 \item{obey the triangle rule: \emph{dist(a,b) + dist(b,c) >= dist(a,c)}}
 }
+
+The provided distance function, \strong{may} take an optional third parameter, which may be of any valid R data type.
+If it does, this parameter must be provided as the third argument to cover tree constructor.
+This parameter will be passed to every invocation of the distance function.
+
 The columns defined in the data.frame are irrelevant to the CoverTree algorithm, but must be
 consistent with the distance function.
 }

@@ -15,22 +15,27 @@
 #' For the purpose of the CoverTree algorithm, unique data means having a non-zero separation.
 #' \strong{Redundant data will not be added to the cover tree}.
 #'
-#' The provided distance function must take two rows from the input data as
+#' The provided distance function \strong{must} take two rows from the input data as
 #' arguments and must return a distance.   The returned distance must:
 #' \itemize{
 #' \item{be non-negative}
 #' \item{be symmetric: \emph{dist(a,b) = dist(b,a)}}
 #' \item{obey the triangle rule: \emph{dist(a,b) + dist(b,c) >= dist(a,c)}}
 #' }
+#'
+#' The provided distance function, \strong{may} take an optional third parameter, which may be of any valid R data type.
+#' If it does, this parameter must be provided as the third argument to cover tree constructor.
+#' This parameter will be passed to every invocation of the distance function.
+#'
 #' The columns defined in the data.frame are irrelevant to the CoverTree algorithm, but must be
 #' consistent with the distance function.
 #'
 #' @param data a data.frame containing the data to be covered
 #' @param dist.func a function that computes the distance between 2 entry rows in the data
 #' @return An initialized CoverTree as described above
-#' @usage ct <- CoverTree(data,dist.func)
+#' @usage ct <- CoverTree(data,dist.func[,param])
 #' @export
-CoverTree <- function(data,dist.func)
+CoverTree <- function(data,dist.func,param=NULL)
 {
   self  <- environment()
 
@@ -53,9 +58,7 @@ CoverTree <- function(data,dist.func)
 
   root <- CoverTreeNode(1,data[1,])
 
-  addChild(root,2,data[2,],dist.func(data[1,],data[2,]))
-
-  for( row in 3:nodeCount )
+  for( row in 2:nodeCount )
   {
     addRow(self,row,data[row,])
   }
@@ -64,6 +67,7 @@ CoverTree <- function(data,dist.func)
 
   return(self)
 }
+
 
 #' @export
 add.data <- function(self,data)
@@ -74,8 +78,8 @@ add.data <- function(self,data)
 #' Add Data
 #'
 #' Inserts additional data into the cover tree.
-#' 
-#' @details 
+#'
+#' @details
 #' The column names in the input data frame must exactly match those in the data used to create
 #' the CoverTree object.
 #'
@@ -114,12 +118,23 @@ addRow <- function(self,row,data)
 {
   root <- self$root
 
-  rootDist = self$dist.func(data,root$data)
+  if(is.null(self$param))
+  {
+    rootDist <- self$dist.func(data,root$data)
+  }
+  else
+  {
+    rootDist <- self$dist.func(data,root$data,self$param)
+  }
 
   if(rootDist > 0)
   {
     r <- row
-    if( insert(self,r,data,list(root),rootDist,root$level) == FALSE )
+    if( is.null(root$level) )
+    {
+      addChild(root,2,data,rootDist)
+    }
+    else if( insert(self,r,data,list(root),rootDist,root$level) == FALSE )
     {
       addChild(root,r,data,rootDist)
     }
@@ -133,8 +148,8 @@ insert <- function(self,row,data,Qi.nodes,Qi.dists,level)
   candQi.node <- NULL
   candQi.dist <- NULL
 
-  Qj.nodes = list()
-  Qj.dists = NULL
+  Qj.nodes <- list()
+  Qj.dists <- NULL
 
   nQi <- length(Qi.dists)
   for( qi in 1:nQi )
@@ -145,8 +160,8 @@ insert <- function(self,row,data,Qi.nodes,Qi.dists,level)
     {
       if( is.null(candQi.dist) || (qi.dist < candQi.dist) )
       {
-        candQi.node = qi.node
-        candQi.dist = qi.dist
+        candQi.node <- qi.node
+        candQi.dist <- qi.dist
       }
 
       Qj.nodes <- append(Qj.nodes, qi.node)
@@ -158,7 +173,14 @@ insert <- function(self,row,data,Qi.nodes,Qi.dists,level)
     {
       for(q in children)
       {
-        dist <- self$dist.func(data,q$data)
+        if(is.null(self$param))
+        {
+          dist <- self$dist.func(data,q$data)
+        }
+        else
+        {
+          dist <- self$dist.func(data,q$data,self$param)
+        }
         if( dist == 0.0 ) { return(TRUE) }
 
         if(dist <= sep)
@@ -215,7 +237,7 @@ as.nodes <- function(x)
 #' @export
 as.nodes.CoverTree <- function(self)
 {
-  nodes <- node_to_dataframe(self$root)
+  nodes <- nodeToDataframe(self$root)
   nodes <- nodes[ order(nodes$row), ]
   rownames(nodes) <- nodes$row
   nodes$row <- NULL
@@ -224,34 +246,77 @@ as.nodes.CoverTree <- function(self)
 }
 
 #' @export
-as.hclust <- function(self)
+as.dendrogram <- function(self)
 {
-  UseMethod('as.hclust',self)
+  UseMethod('as.dendrogram')
 }
 
-#' Dendragram data
+#' Dendrogram data
 #'
-#' @details Returns a data structure that can be plotted as hclust dendragrams
+#' @details Returns a data structure that can be plotted as hclust dendrograms
 #' @param ct The CoverTree to be converted to be converted
-#' @return data structure that can be plotted as a dendragram
+#' @return data structure that can be plotted as a dendrogram
 #' @usage
-#' \code{> hc <- as.hclust(ct)}
-#' \code{> plot(hc) }
+#' \code{> dend <- as.dendrogram(ct)}
+#' \code{> plot(dend) }
 #' @export
-as.hclust.CoverTree <- function(self)
+as.dendrogram.CoverTree <- function(self)
 {
-  nodes <- as.nodes(self)
-  nodes <- nodes[ order(-nodes$level,nodes$parent), ]
-  n     <- nrow(nodes)
-  nodes$node    <- as.numeric( rownames(nodes) )
-  nodes$cluster <- rep(NA,n)
+  # nodes <- as.nodes(self)
+  # nodes <- nodes[ order(-nodes$level,nodes$parent), ]
+  # n     <- nrow(nodes)
+  # nodes$node    <- as.numeric( rownames(nodes) )
+  # nodes$cluster <- rep(NA,n)
+  #
+  # print(nodes)
 
-  for( i in 1:n-1 )
-  {
-    node   <- nodes$node[i]
-    parent <- nodes$parent[i]
+  dend <- new.env()
+  dend$count  <- 0
+  dend$merge  <- matrix(nrow=nrow(self$data)-1,ncol=2)
+  dend$order  <- NULL
+  dend$height <- NULL
+#  dend$labels <- NULL
 
+  clusters <- new.env()
 
-  }
+  addToDendrogram(self$root,dend,clusters)
+
+  class(dend) <- c( class(dend), 'CoverTreeDendrogram' )
+  return(dend)
 }
 
+#' Plot CoverTree Dendrogram
+#'
+#' @details Returns a data structure that can be plotted as hclust dendrograms
+#'
+#' Note that the CoverTreeDendrogram does \strong{not} provide data labels
+#' If you wish to have the nodes labeled, you must append a labels dimension
+#' to the CoverTreeDendrogram object as shown above
+#'
+#' This plot function takes all of the same optional arguments taken by
+#' plot.hclust.  See the link below for additional info.
+#'
+#' @param dend A cover tree dendrogram object
+#' @seealso \link{as.dendrogram.CoverTree}
+#' @seealso \link{plot.hclust}
+#' @return n/a
+#' @usage
+#' \code{> dend <- as.dendrogram(ct) }
+#' \code{> dend$labels <- x }
+#' \code{> plot(dend) }
+#' @export
+plot.CoverTreeDendrogram <- function(dend, 
+                                     main='CoverTree Dendrogram',
+                                     ylab='Log2(distance)', 
+                                     ... )
+{
+  hc <- new.env()
+  hc$merge  <- dend$merge
+  hc$order  <- dend$order
+  hc$height <- dend$height
+#  hc$labels <- dend$labels
+
+  class(hc) <- 'hclust'
+
+  plot( hc, main=main, ylab=ylab, ... )
+}

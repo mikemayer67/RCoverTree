@@ -125,11 +125,11 @@ getChildren.CoverTreeNode <- function(node,level)
 print.CoverTreeNode <- function(node)
 {
   cat("\n")
-  node.print(node,'  ')
+  printNode(node,'  ')
   cat("\n")
 }
 
-node.print <- function(node,prefix)
+printNode <- function(node,prefix)
 {
   if(is.null(node$distance))
   {
@@ -145,13 +145,13 @@ node.print <- function(node,prefix)
     children <- get(level,node$children)
     for( child in children )
     {
-      node.print(child,paste(prefix,"  "));
+      printNode(child,paste(prefix,"  "));
     }
   }
 }
 
 #' @export
-node_to_dataframe <- function(node)
+nodeToDataframe <- function(node)
 {
   p <- ifelse(node$isRoot, NA, node$parent$row)
   d <- ifelse(node$isRoot, NA, node$distance)
@@ -159,13 +159,74 @@ node_to_dataframe <- function(node)
 
   for(level in ls(node$children))
   {
-    children = get(level,node$children)
+    children <- get(level,node$children)
     for(child in children)
     {
-      st <- node_to_dataframe(child)
+      st <- nodeToDataframe(child)
       rval <- rbind(rval,st)
     }
   }
 
   return(rval)
+}
+
+#' @export
+addToDendrogram <- function(node,dend,clusters)
+{
+  children <- NULL;
+  levels <- ls(node$children)
+  for( level in levels )
+  {
+    levelChildren <- get(level,node$children)
+    children <- c(children, levelChildren)
+  }
+
+  dists <- as.numeric( lapply(children,function(x) { x$distance }) )
+  children <- children[ order(dists) ]
+
+  for( child in children )
+  {
+    if( child$isLeaf == FALSE )
+    {
+      addToDendrogram(child,dend,clusters)
+    }
+    a <- node$row
+    b <- child$row
+
+    ka <- as.character(a)
+    kb <- as.character(b)
+
+    while(exists(ka,clusters))
+    {
+      hasA <- TRUE
+      a <- get(ka,clusters)
+      ka <- as.character(a)
+    }
+    while(exists(kb,clusters))
+    {
+      hasB <- TRUE
+      b <- get(kb,clusters)
+      kb <- as.character(b)
+    }
+
+    dend$count <- dend$count + 1
+    dend$merge[ dend$count, 1 ] <- -a
+    dend$merge[ dend$count, 2 ] <- -b
+    dend$height <- c( dend$height, log2(child$distance))
+
+    if( a > 0 ) 
+    { 
+      dend$order <- c(dend$order, a)
+#      label <- ifelse( node$isRoot, sprintf('%d - root',a), sprintf('%d - %5f',a,node$distance) )
+#      dend$labels <- c( dend$labels, label )
+    }
+    if( b > 0 ) 
+    { 
+      dend$order <- c(dend$order, b)
+#      dend$labels <- c( dend$labels, sprintf('%d - %5f',b,child$distance) ) 
+    }
+
+    assign(ka,-dend$count, clusters)
+    assign(kb,-dend$count, clusters)
+  }
 }
