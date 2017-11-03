@@ -4,7 +4,7 @@
 \alias{CoverTree}
 \title{Cover Tree}
 \usage{
-ct <- CoverTree(data,dist.func[,param])
+ct <- CoverTree(data,dist.func,...)
 }
 \arguments{
 \item{data}{a data.frame containing the data to be covered}
@@ -39,9 +39,9 @@ arguments and must return a distance.   The returned distance must:
 \item{obey the triangle rule: \emph{dist(a,b) + dist(b,c) >= dist(a,c)}}
 }
 
-The provided distance function, \strong{may} take an optional third parameter, which may be of any valid R data type.
-If it does, this parameter must be provided as the third argument to cover tree constructor.
-This parameter will be passed to every invocation of the distance function.
+The provided distance function, \strong{may} takeoptional parameters.
+If it does, these parameter must also be provided to cover tree constructor in the format recognized by the distance function.
+These parameter will be passed to every invocation of the distance function.
 
 The columns defined in the data.frame are irrelevant to the CoverTree algorithm, but must be
 consistent with the distance function.

@@ -23,9 +23,9 @@
 #' \item{obey the triangle rule: \emph{dist(a,b) + dist(b,c) >= dist(a,c)}}
 #' }
 #'
-#' The provided distance function, \strong{may} take an optional third parameter, which may be of any valid R data type.
-#' If it does, this parameter must be provided as the third argument to cover tree constructor.
-#' This parameter will be passed to every invocation of the distance function.
+#' The provided distance function, \strong{may} takeoptional parameters.
+#' If it does, these parameter must also be provided to cover tree constructor in the format recognized by the distance function.
+#' These parameter will be passed to every invocation of the distance function.
 #'
 #' The columns defined in the data.frame are irrelevant to the CoverTree algorithm, but must be
 #' consistent with the distance function.
@@ -33,7 +33,7 @@
 #' @param data a data.frame containing the data to be covered
 #' @param dist.func a function that computes the distance between 2 entry rows in the data
 #' @return An initialized CoverTree as described above
-#' @usage ct <- CoverTree(data,dist.func[,param])
+#' @usage ct <- CoverTree(data,dist.func,...)
 #' @export
 CoverTree <- function(data,distfunc,...)
 {
