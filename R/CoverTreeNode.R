@@ -16,10 +16,12 @@ CoverTreeNode <- function(row,data,parent=NULL,distance=NULL)
 
   if(is.null(data))  { stop('The data argument must be provided') }
 
+  row      <- row
+  data     <- data
   level    <- NULL
   isRoot   <- is.null(parent)
-  children <- new.env()
   isLeaf   <- TRUE
+  children <- new.env()
 
   if( isRoot )
   {
@@ -171,7 +173,7 @@ nodeToDataframe <- function(node)
 }
 
 #' @export
-addToDendrogram <- function(node,dend,clusters)
+addToDendrogram <- function(node,dend,nodes,clusters,labels)
 {
   children <- NULL;
   levels <- ls(node$children)
@@ -188,20 +190,24 @@ addToDendrogram <- function(node,dend,clusters)
   {
     if( child$isLeaf == FALSE )
     {
-      addToDendrogram(child,dend,clusters)
+      addToDendrogram(child,dend,nodes,clusters,labels)
     }
-    a <- node$row
-    b <- child$row
+
+    knr <- as.character(node$row)
+    if(exists(knr,nodes)) { a <- get(knr,nodes) } else { a <- 1 + length(ls(nodes)); assign(knr,a,nodes) } 
+
+    kcr <- as.character(child$row)
+    if(exists(kcr,nodes)) { b <- get(kcr,nodes) } else { b <- 1 + length(ls(nodes)); assign(kcr,b,nodes) } 
 
     ka <- as.character(a)
-    kb <- as.character(b)
-
     while(exists(ka,clusters))
     {
       hasA <- TRUE
       a <- get(ka,clusters)
       ka <- as.character(a)
     }
+
+    kb <- as.character(b)
     while(exists(kb,clusters))
     {
       hasB <- TRUE
@@ -217,13 +223,14 @@ addToDendrogram <- function(node,dend,clusters)
     if( a > 0 ) 
     { 
       dend$order <- c(dend$order, a)
-#      label <- ifelse( node$isRoot, sprintf('%d - root',a), sprintf('%d - %5f',a,node$distance) )
-#      dend$labels <- c( dend$labels, label )
+      if(is.null(labels)) { dend$labels[a] <- as.character(node$row) } 
+      else                { dend$labels[a] <- labels[node$row] }
     }
     if( b > 0 ) 
     { 
       dend$order <- c(dend$order, b)
-#      dend$labels <- c( dend$labels, sprintf('%d - %5f',b,child$distance) ) 
+      if(is.null(labels)) { dend$labels[b] <- as.character(child$row) }
+      else                { dend$labels[b] <- labels[child$row] }
     }
 
     assign(ka,-dend$count, clusters)

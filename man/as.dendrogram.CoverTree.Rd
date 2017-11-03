@@ -4,11 +4,13 @@
 \alias{as.dendrogram.CoverTree}
 \title{Dendrogram data}
 \usage{
-\code{> dend <- as.dendrogram(ct)}
+\code{> dend <- as.dendrogram(ct[,labels])}
 \code{> plot(dend) }
 }
 \arguments{
-\item{ct}{The CoverTree to be converted to be converted}
+\item{labels}{[OPTIONAL] Labels applied to each node (indexed by row number in covered data)}
+
+\item{ct}{CoverTree to be converted to be converted}
 }
 \value{
 data structure that can be plotted as a dendrogram

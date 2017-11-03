@@ -76,7 +76,6 @@ CoverTree <- function(data,distfunc,...)
   return(self)
 }
 
-
 #' @export
 add.data <- function(self,data)
 {
@@ -254,7 +253,7 @@ as.nodes.CoverTree <- function(self)
 }
 
 #' @export
-as.dendrogram <- function(self)
+as.dendrogram <- function(self,labels=NULL)
 {
   UseMethod('as.dendrogram')
 }
@@ -262,32 +261,28 @@ as.dendrogram <- function(self)
 #' Dendrogram data
 #'
 #' @details Returns a data structure that can be plotted as hclust dendrograms
-#' @param ct The CoverTree to be converted to be converted
+#' @param ct CoverTree to be converted to be converted
+#' @param labels [OPTIONAL] Labels applied to each node (indexed by row number in covered data)
 #' @return data structure that can be plotted as a dendrogram
 #' @usage
-#' \code{> dend <- as.dendrogram(ct)}
+#' \code{> dend <- as.dendrogram(ct[,labels])}
 #' \code{> plot(dend) }
 #' @export
-as.dendrogram.CoverTree <- function(self)
+as.dendrogram.CoverTree <- function(self,labels=NULL)
 {
-  # nodes <- as.nodes(self)
-  # nodes <- nodes[ order(-nodes$level,nodes$parent), ]
-  # n     <- nrow(nodes)
-  # nodes$node    <- as.numeric( rownames(nodes) )
-  # nodes$cluster <- rep(NA,n)
-  #
-  # print(nodes)
-
   dend <- new.env()
   dend$count  <- 0
   dend$merge  <- matrix(nrow=nrow(self$data)-1,ncol=2)
   dend$order  <- NULL
   dend$height <- NULL
-#  dend$labels <- NULL
+  dend$labels <- NULL
 
+  nodes    <- new.env()
   clusters <- new.env()
 
-  addToDendrogram(self$root,dend,clusters)
+  addToDendrogram(self$root,dend,nodes,clusters,labels)
+
+  dend$merge <- matrix( dend$merge[ ! is.na(dend$merge) ], ncol=2 )
 
   class(dend) <- c( class(dend), 'CoverTreeDendrogram' )
   return(dend)
@@ -322,7 +317,7 @@ plot.CoverTreeDendrogram <- function(dend,
   hc$merge  <- dend$merge
   hc$order  <- dend$order
   hc$height <- dend$height
-#  hc$labels <- dend$labels
+  hc$labels <- dend$labels
 
   class(hc) <- 'hclust'
 
