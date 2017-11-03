@@ -35,7 +35,7 @@
 #' @return An initialized CoverTree as described above
 #' @usage ct <- CoverTree(data,dist.func[,param])
 #' @export
-CoverTree <- function(data,dist.func,param=NULL)
+CoverTree <- function(data,distfunc,...)
 {
   self  <- environment()
 
@@ -43,7 +43,7 @@ CoverTree <- function(data,dist.func,param=NULL)
   {
     stop(paste("Data must be a data.frame, not a",class(data)))
   }
-  if(is.function(dist.func) == FALSE)
+  if(is.function(distfunc) == FALSE)
   {
     stop(paste("dist.func must be a function, not a",class(dist.func)))
   }
@@ -53,8 +53,16 @@ CoverTree <- function(data,dist.func,param=NULL)
   }
 
   nodeCount <- nrow(data)
-  dist.func <- dist.func
   data      <- data
+
+  if( length(list(...)) > 0 )
+  {
+    dist.func <- function(a,b) { return(distfunc(a,b,...)) }
+  }
+  else
+  {
+    dist.func <- distfunc
+  }
 
   root <- CoverTreeNode(1,data[1,])
 
@@ -305,9 +313,9 @@ as.dendrogram.CoverTree <- function(self)
 #' \code{> dend$labels <- x }
 #' \code{> plot(dend) }
 #' @export
-plot.CoverTreeDendrogram <- function(dend, 
+plot.CoverTreeDendrogram <- function(dend,
                                      main='CoverTree Dendrogram',
-                                     ylab='Log2(distance)', 
+                                     ylab='Log2(distance)',
                                      ... )
 {
   hc <- new.env()
