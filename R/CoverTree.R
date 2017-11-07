@@ -37,7 +37,7 @@
 #' @export
 CoverTree <- function(data,distfunc,...)
 {
-  self  <- environment()
+  self <- new.env()
 
   if(is.data.frame(data) == FALSE)
   {
@@ -139,11 +139,15 @@ addRow <- function(self,row,data)
     r <- row
     if( is.null(root$level) )
     {
-      addChild(root,2,data,rootDist)
+      c<-addChild(root,2,data,rootDist)
+      self$min.level = root$level
+      self$max.level = root$level
     }
     else if( insert(self,r,data,list(root),rootDist,root$level) == FALSE )
     {
-      addChild(root,r,data,rootDist)
+      c<-addChild(root,r,data,rootDist)
+      if( c$level    > self$max.level)  { self$max.level = c$level    }
+      if( root$level < self$min.level ) { self$min.level = root$level }
     }
   }
 }
@@ -206,6 +210,8 @@ insert <- function(self,row,data,Qi.nodes,Qi.dists,level)
   if( is.null(candQi.node) ) { return(FALSE) }
 
   q <- addChild(candQi.node, row, data, candQi.dist)
+  if( q$level > self$max.level) { self$max.level = q$level }
+  if( self$root$level < self$min.level ) { self$min.level = self$root$level }
 
   return(TRUE)
 }
@@ -220,6 +226,7 @@ insert <- function(self,row,data,Qi.nodes,Qi.dists,level)
 #' @export
 print.CoverTree <- function(self)
 {
+  cat(sprintf('Min.Level = %3d (root)\nMax.Level = %3d\n',self$min.level,self$max.level))
   print(self$root)
 }
 
@@ -246,8 +253,14 @@ as.nodes.CoverTree <- function(self)
 {
   nodes <- nodeToDataframe(self$root)
   nodes <- nodes[ order(nodes$row), ]
-  rownames(nodes) <- nodes$row
-  nodes$row <- NULL
+
+  levels <- unique(nodes$level)
+  levels <- levels[ order(levels) ]
+
+  counts <- sapply(levels,function(t) { sum(nodes$level>=t) })
+  nodes <- merge(nodes, data.frame(level=levels, n.thresh=counts))
+
+  nodes$score <- (1- (nodes$n.thresh - nodes$n.cluster)/self$root$n.cluster ) * (nodes$n.cluster>1)
 
   return(nodes)
 }
@@ -322,4 +335,36 @@ plot.CoverTreeDendrogram <- function(dend,
   class(hc) <- 'hclust'
 
   plot( hc, main=main, ylab=ylab, ... )
+}
+
+
+#' @export
+split <- function(self,level,prune=0)
+{
+  cat(sprintf("Generic1 split\n"))
+  UseMethod('split',self)
+}
+
+#' Split CoverTree
+#'
+#' @details Returns a list of CoverTrees formed by segmenting the tree
+#' such that the root node of each segmented tree is at ggthe specified
+#' level.
+#'
+#' @param ct The cover tree to be split
+#' @param level The level at which to cut the tree
+#' @param prune How to handle nodes above the split level
+#' \itemize{
+#'    \item 0 = No nodes above the split level are ever included in the new subtrees
+#'    \item 1 = A single node above the split level is included if there is no node in the subtree does not contain a node at the split level
+#'    \item 2 = All nodes above the split level are replicated to each new subtree
+#' }
+#' @usage
+#' \code{> subtrees <- split(ct,level,prune) }
+#' @export
+split.CoverTree <- function(self,level,prune=0)
+{
+  cat(sprintf("CoverTree split\n"))
+  rval <- split(self$root,level,prune)
+  return(rval)
 }

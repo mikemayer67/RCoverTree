@@ -23,6 +23,8 @@ CoverTreeNode <- function(row,data,parent=NULL,distance=NULL)
   isLeaf   <- TRUE
   children <- new.env()
 
+  n.cluster <- 1
+
   if( isRoot )
   {
     if( is.numeric(distance) ) { warning('No need to specify distance value for root node') }
@@ -87,7 +89,15 @@ addChild.CoverTreeNode <- function(node,row,data,distance)
     }
   }
 
-  level <- as.character(child$level)
+  node$n.cluster <- 1 + node$n.cluster
+  p = node$parent
+  while( is.null(p) == FALSE )
+  {
+    p$n.cluster <- 1 + p$n.cluster
+    p = p$parent
+  }
+
+  level    <- as.character(child$level)
   children <- node$children
 
   if( exists(level,children) )
@@ -131,6 +141,26 @@ print.CoverTreeNode <- function(node)
   cat("\n")
 }
 
+#' @export
+split.CoverTreeNode <- function(self,level,prune=0)
+{
+  rval <- list()
+  cand.root.levels <- as.numeric(ls(self$children))
+  new.root.levels <- cand.roots[cand.roots >= level]
+
+  for( rlevel in new.root.levels )
+  {
+    new.roots <- get(as.character(rlevel),self$children)
+    foreach ( new.root in new.roots )
+    {
+
+    new.root <- get(as.character(rlevel),self$children)
+    new.root <- clone(new.root[[1]])
+    new.root$isRoot = TRUE
+  }
+  return(rval)
+}
+
 printNode <- function(node,prefix)
 {
   if(is.null(node$distance))
@@ -157,7 +187,8 @@ nodeToDataframe <- function(node)
 {
   p <- ifelse(node$isRoot, NA, node$parent$row)
   d <- ifelse(node$isRoot, NA, node$distance)
-  rval <- data.frame( row=node$row, level=node$level, parent=p, distance=d)
+  c <- node$n.cluster
+  rval <- data.frame( row=node$row, level=node$level, parent=p, distance=d, n.cluster=c )
 
   for(level in ls(node$children))
   {
@@ -194,10 +225,10 @@ addToDendrogram <- function(node,dend,nodes,clusters,labels)
     }
 
     knr <- as.character(node$row)
-    if(exists(knr,nodes)) { a <- get(knr,nodes) } else { a <- 1 + length(ls(nodes)); assign(knr,a,nodes) } 
+    if(exists(knr,nodes)) { a <- get(knr,nodes) } else { a <- 1 + length(ls(nodes)); assign(knr,a,nodes) }
 
     kcr <- as.character(child$row)
-    if(exists(kcr,nodes)) { b <- get(kcr,nodes) } else { b <- 1 + length(ls(nodes)); assign(kcr,b,nodes) } 
+    if(exists(kcr,nodes)) { b <- get(kcr,nodes) } else { b <- 1 + length(ls(nodes)); assign(kcr,b,nodes) }
 
     ka <- as.character(a)
     while(exists(ka,clusters))
@@ -220,14 +251,14 @@ addToDendrogram <- function(node,dend,nodes,clusters,labels)
     dend$merge[ dend$count, 2 ] <- -b
     dend$height <- c( dend$height, log2(child$distance))
 
-    if( a > 0 ) 
-    { 
+    if( a > 0 )
+    {
       dend$order <- c(dend$order, a)
-      if(is.null(labels)) { dend$labels[a] <- as.character(node$row) } 
+      if(is.null(labels)) { dend$labels[a] <- as.character(node$row) }
       else                { dend$labels[a] <- labels[node$row] }
     }
-    if( b > 0 ) 
-    { 
+    if( b > 0 )
+    {
       dend$order <- c(dend$order, b)
       if(is.null(labels)) { dend$labels[b] <- as.character(child$row) }
       else                { dend$labels[b] <- labels[child$row] }

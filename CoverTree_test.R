@@ -1,0 +1,10 @@
+x <- c(1,10,25,2,18,64,31,12,83,42,57)
+#x <- c(runif(99,min=0,max=100),rnorm(10,mean=38,sd=0.01))
+d <- data.frame(x=x,y=x)
+df <- function(a,b) { return(abs(a$x-b$x)) }
+ct <- CoverTree(d,df)
+dend <- as.dendrogram(ct)
+plot(dend,labels=x[as.numeric(dend$labels)])
+#plot(dend)
+n <- as.nodes(ct)
+print(n)
