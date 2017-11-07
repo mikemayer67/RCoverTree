@@ -64,8 +64,6 @@ CoverTree <- function(data,distfunc,...)
   self$root      <- CoverTreeNode(1,data[1,])
   self$nextID    <- 2
   self$n.nodes   <- 1
-  self$min.level <- NA
-  self$max.level <- NA
 
   for( row in 2:nrow(data) )
   {
@@ -128,11 +126,6 @@ addRow <- function(self,data)
     if( is.null(root$level) )
     {
       node<-addChild(root,self$nextID,data,rootDist)
-      if( is.null(node) == FALSE )
-      {
-        self$max.level <- node$level
-        self$min.level <- root$level
-      }
     }
     else if( insert(self,data,list(root),rootDist,root$level) == FALSE )
     {
@@ -142,8 +135,6 @@ addRow <- function(self,data)
     {
       self$nextID  <- 1 + self$nextID
       self$n.nodes <- 1 + self$n.nodes
-      if( node$level > self$max.level ) { self$max.level <- node$level }
-      if( root$level < self$min.level ) { self$min.level <- root$level }
     }
   }
 }
@@ -203,8 +194,6 @@ insert <- function(self,data,Qi.nodes,Qi.dists,level)
   {
     self$nextID  <- 1 + self$nextID
     self$n.nodes <- 1 + self$n.nodes
-    if( q$level > self$max.level) { self$max.level = q$level }
-    if( self$root$level < self$min.level ) { self$min.level = self$root$level }
   }
 
   return(TRUE)
@@ -220,7 +209,7 @@ insert <- function(self,data,Qi.nodes,Qi.dists,level)
 #' @export
 print.CoverTree <- function(self)
 {
-  cat(sprintf('Min.Level = %3d (root)\nMax.Level = %3d\n',self$min.level,self$max.level))
+  cat(sprintf('Min.Level = %3d (root)\nMax.Level = %3d\n',self$root$level,self$root$max.level))
   print(self$root)
 }
 
@@ -339,7 +328,6 @@ plot.CoverTreeDendrogram <- function(dend,
 #' @export
 split <- function(self,level,prune=0)
 {
-  cat(sprintf("Generic1 split\n"))
   UseMethod('split',self)
 }
 
@@ -362,7 +350,21 @@ split <- function(self,level,prune=0)
 #' @export
 split.CoverTree <- function(self,level,prune=0)
 {
-  cat(sprintf("CoverTree split\n"))
-  rval <- split(self$root,level,prune)
+  root.nodes <- split(self$root,level,prune)
+
+  rval <- list()
+
+  for( node in root.nodes )
+  {
+    subtree <- new.env()
+    subtree$dist.func <- self$dist.func
+    subtree$n.nodes   <- self$n.cluster
+    subtree$root      <- node
+
+    class(subtree) <- class(self)
+
+    rval <- append(rval,subtree)
+  }
+
   return(rval)
 }

@@ -12,20 +12,19 @@
 #' @export
 CoverTreeNode <- function(id,data,parent=NULL,distance=NULL)
 {
-  self <- environment()
+  self <- new.env()
 
   if(is.null(data))  { stop('The data argument must be provided') }
 
-  id       <- id
-  data     <- data
-  level    <- NULL
-  isRoot   <- is.null(parent)
-  isLeaf   <- TRUE
-  children <- new.env()
+  self$id       <- id
+  self$data     <- data
+  self$isRoot   <- is.null(parent)
+  self$isLeaf   <- TRUE
+  self$children <- new.env()
 
-  n.cluster <- 1
+  self$n.cluster <- 1
 
-  if( isRoot )
+  if( self$isRoot )
   {
     if( is.numeric(distance) ) { warning('No need to specify distance value for root node') }
   }
@@ -48,12 +47,59 @@ CoverTreeNode <- function(id,data,parent=NULL,distance=NULL)
       stop("Distance must be positive, not: ",distance)
     }
 
-    level  <- floor(1-log2(distance))
+    self$parent    <- parent
+    self$distance  <- distance
+    self$level     <- floor(1-log2(distance))
+    self$max.level <- self$level
   }
 
   class(self) <- append( class(self), 'CoverTreeNode' )
 
   return(self)
+}
+
+cloneNode <- function(node,root=FALSE)
+{
+  clone <- new.env()
+
+  clone$id        <- node$id
+  clone$data      <- node$data
+  clone$isRoot    <- root
+  clone$isLeaf    <- node$isLeaf
+
+  if( root == FALSE )
+  {
+    clone$parent   <- node$parent
+    clone$distance <- node$distance
+  }
+
+  if( is.null(node$level) == FALSE )
+  {
+    clone$level     <- node$level
+    clone$max.level <- node$max.level
+  }
+
+  clone$children <- new.env()
+
+  clone$n.cluster <- 1
+
+  if( node$isLeaf == FALSE )
+  {
+    for( level in ls(node$children) )
+    {
+      levelChildren <- list()
+      for( child in get(level,node$children) )
+      {
+        child.clone <- cloneNode(child)
+        clone$n.cluster = clone$n.cluster + child.clone$n.cluster
+        levelChildren <- append(levelChildren,child.clone)
+      }
+      assign(level,levelChildren,node$children)
+    }
+  }
+
+  class(clone) <- class(node)
+  return(clone)
 }
 
 #' @export
@@ -74,7 +120,8 @@ addChild.CoverTreeNode <- function(node,id,data,distance)
 
   if( is.null(node$level) ) #this must be root node (first child being added)
   {
-    node$level <- child$level - 1
+    node$level     <- child$level - 1
+    node$max.level <- child$level
   }
   else if( child$level <= node$level )
   {
@@ -94,6 +141,7 @@ addChild.CoverTreeNode <- function(node,id,data,distance)
   while( is.null(p) == FALSE )
   {
     p$n.cluster <- 1 + p$n.cluster
+    if( child$level > p$max.level ) { p$max.level <- child$level }
     p = p$parent
   }
 
@@ -146,15 +194,16 @@ split.CoverTreeNode <- function(self,level,prune=0)
 {
   rval <- list()
   cand.root.levels <- as.numeric(ls(self$children))
-  new.root.levels <- cand.roots[cand.roots >= level]
+  new.root.levels <- cand.root.levels[cand.root.levels >= level]
 
   for( rlevel in new.root.levels )
   {
     new.roots <- get(as.character(rlevel),self$children)
-    #work here
-    new.root <- get(as.character(rlevel),self$children)
-    new.root <- clone(new.root[[1]])
-    new.root$isRoot = TRUE
+    for( root in new.roots )
+    {
+      new.root = cloneNode(root,root=TRUE);
+      rval <- append(rval, new.root)
+    }
   }
   return(rval)
 }
