@@ -4,10 +4,10 @@
 \alias{CoverTreeNode}
 \title{Cover Tree Node}
 \usage{
-CoverTreeNode(row, data, parent = NULL, distance = NULL)
+CoverTreeNode(id, data, parent = NULL, distance = NULL)
 }
 \arguments{
-\item{row}{index associated with the data}
+\item{id}{A unique index identifying the node being constructed within the cover tree}
 
 \item{data}{A valid R object containing the data represented by the node}
 

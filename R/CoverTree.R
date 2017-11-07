@@ -52,23 +52,24 @@ CoverTree <- function(data,distfunc,...)
     stop(paste("A CoverTree requires at least two data points, only",nrow(data),"provided"))
   }
 
-  nodeCount <- nrow(data)
-  data      <- data
-
   if( length(list(...)) > 0 )
   {
-    dist.func <- function(a,b) { return(distfunc(a,b,...)) }
+    self$dist.func <- function(a,b) { return(distfunc(a,b,...)) }
   }
   else
   {
-    dist.func <- distfunc
+    self$dist.func <- distfunc
   }
 
-  root <- CoverTreeNode(1,data[1,])
+  self$root      <- CoverTreeNode(1,data[1,])
+  self$nextID    <- 2
+  self$n.nodes   <- 1
+  self$min.level <- NA
+  self$max.level <- NA
 
-  for( row in 2:nodeCount )
+  for( row in 2:nrow(data) )
   {
-    addRow(self,row,data[row,])
+    addRow(self,data[row,])
   }
 
   class(self) <- append( class(self), 'CoverTree' )
@@ -107,52 +108,47 @@ add.data.CoverTree <- function(self,data)
   {
     stop(paste("Data must match existing data in CoverTree: ",paste(names(self$root$data),collapse=", ")))
   }
-  n.old <- nrow(self$data)
-  n.new <- nrow(data)
 
-  rows.new <- (n.old+1):(n.old+n.new)
-
-  self$data <- rbind(self$data,data)
-
-  rownames(data) <- rows.new
-  for( row in rows.new )
+  n = nrow(data)
+  for( i in 1:rows.new )
   {
-    addRow(self, row, self$data[row,])
+    addRow(self, data[i,])
   }
 }
 
-addRow <- function(self,row,data)
+addRow <- function(self,data)
 {
   root <- self$root
 
-  if(is.null(self$param))
-  {
-    rootDist <- self$dist.func(data,root$data)
-  }
-  else
-  {
-    rootDist <- self$dist.func(data,root$data,self$param)
-  }
+  rootDist <- self$dist.func(data,root$data)
 
   if(rootDist > 0)
   {
-    r <- row
+    node <- NULL
     if( is.null(root$level) )
     {
-      c<-addChild(root,2,data,rootDist)
-      self$min.level = root$level
-      self$max.level = root$level
+      node<-addChild(root,self$nextID,data,rootDist)
+      if( is.null(node) == FALSE )
+      {
+        self$max.level <- node$level
+        self$min.level <- root$level
+      }
     }
-    else if( insert(self,r,data,list(root),rootDist,root$level) == FALSE )
+    else if( insert(self,data,list(root),rootDist,root$level) == FALSE )
     {
-      c<-addChild(root,r,data,rootDist)
-      if( c$level    > self$max.level)  { self$max.level = c$level    }
-      if( root$level < self$min.level ) { self$min.level = root$level }
+      node<-addChild(root,self$nextID,data,rootDist)
+    }
+    if( is.null(node) == FALSE )
+    {
+      self$nextID  <- 1 + self$nextID
+      self$n.nodes <- 1 + self$n.nodes
+      if( node$level > self$max.level ) { self$max.level <- node$level }
+      if( root$level < self$min.level ) { self$min.level <- root$level }
     }
   }
 }
 
-insert <- function(self,row,data,Qi.nodes,Qi.dists,level)
+insert <- function(self,data,Qi.nodes,Qi.dists,level)
 {
   sep <- 1./(2^level)
 
@@ -184,14 +180,7 @@ insert <- function(self,row,data,Qi.nodes,Qi.dists,level)
     {
       for(q in children)
       {
-        if(is.null(self$param))
-        {
-          dist <- self$dist.func(data,q$data)
-        }
-        else
-        {
-          dist <- self$dist.func(data,q$data,self$param)
-        }
+        dist <- self$dist.func(data,q$data)
         if( dist == 0.0 ) { return(TRUE) }
 
         if(dist <= sep)
@@ -206,12 +195,17 @@ insert <- function(self,row,data,Qi.nodes,Qi.dists,level)
   nQj <- length(Qj.dists)
   if( nQj == 0 ) { return(FALSE) }
 
-  if( insert(self,row,data,Qj.nodes,Qj.dists,level+1) ) { return(TRUE) }
+  if( insert(self,data,Qj.nodes,Qj.dists,level+1) ) { return(TRUE) }
   if( is.null(candQi.node) ) { return(FALSE) }
 
-  q <- addChild(candQi.node, row, data, candQi.dist)
-  if( q$level > self$max.level) { self$max.level = q$level }
-  if( self$root$level < self$min.level ) { self$min.level = self$root$level }
+  q <- addChild(candQi.node, self$nextID, data, candQi.dist)
+  if( is.null(q) == FALSE )
+  {
+    self$nextID  <- 1 + self$nextID
+    self$n.nodes <- 1 + self$n.nodes
+    if( q$level > self$max.level) { self$max.level = q$level }
+    if( self$root$level < self$min.level ) { self$min.level = self$root$level }
+  }
 
   return(TRUE)
 }
@@ -252,13 +246,17 @@ as.nodes <- function(x)
 as.nodes.CoverTree <- function(self)
 {
   nodes <- nodeToDataframe(self$root)
-  nodes <- nodes[ order(nodes$row), ]
 
   levels <- unique(nodes$level)
   levels <- levels[ order(levels) ]
 
   counts <- sapply(levels,function(t) { sum(nodes$level>=t) })
   nodes <- merge(nodes, data.frame(level=levels, n.thresh=counts))
+
+  nodes <- nodes[ order(nodes$id), ]
+  rownames(nodes) <- nodes$id
+
+  nodes <- nodes[,c(1,3:ncol(nodes))]
 
   nodes$score <- (1- (nodes$n.thresh - nodes$n.cluster)/self$root$n.cluster ) * (nodes$n.cluster>1)
 
@@ -285,7 +283,7 @@ as.dendrogram.CoverTree <- function(self,labels=NULL)
 {
   dend <- new.env()
   dend$count  <- 0
-  dend$merge  <- matrix(nrow=nrow(self$data)-1,ncol=2)
+  dend$merge  <- matrix(nrow=self$n.nodes-1,ncol=2)
   dend$order  <- NULL
   dend$height <- NULL
   dend$labels <- NULL

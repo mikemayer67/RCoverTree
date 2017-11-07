@@ -3,20 +3,20 @@
 #' Constructs a cover tree node.  This constructor should proably never
 #' be called directly.   Rather it should be called by CoverTree during
 #' its construction and subsequent updates.
-#' @param row index associated with the data
+#' @param id A unique index identifying the node being constructed within the cover tree
 #' @param data A valid R object containing the data represented by the node
 #' @param parent The parent node for the one being constructed (n/a for root node)
 #' @param distance Either a numeric value or a distance function [ f(data,data) -> numeric ]
 #' @return An initialized CoverTreeNode, fully connected as a child of 'parent'
 #' @seealso \link{CoverTree}
 #' @export
-CoverTreeNode <- function(row,data,parent=NULL,distance=NULL)
+CoverTreeNode <- function(id,data,parent=NULL,distance=NULL)
 {
   self <- environment()
 
   if(is.null(data))  { stop('The data argument must be provided') }
 
-  row      <- row
+  id       <- id
   data     <- data
   level    <- NULL
   isRoot   <- is.null(parent)
@@ -57,20 +57,20 @@ CoverTreeNode <- function(row,data,parent=NULL,distance=NULL)
 }
 
 #' @export
-addChild <- function(node,row,data,distance)
+addChild <- function(node,id,data,distance)
 {
   UseMethod('addChild',node)
 }
 
 #' @export
-addChild.CoverTreeNode <- function(node,row,data,distance)
+addChild.CoverTreeNode <- function(node,id,data,distance)
 {
   if(distance == 0)
   {
-    warning("Attempted to add row ",row,", as a child node of row ",node$row," at distance 0", call.=FALSE)
-    return(node)
+    warning("Attempted to add new node ",id,", as a child node of row ",node$id," at distance 0", call.=FALSE)
+    return(NULL)
   }
-  child <- CoverTreeNode(row,data,node,distance)
+  child <- CoverTreeNode(id,data,node,distance)
 
   if( is.null(node$level) ) #this must be root node (first child being added)
   {
@@ -151,9 +151,7 @@ split.CoverTreeNode <- function(self,level,prune=0)
   for( rlevel in new.root.levels )
   {
     new.roots <- get(as.character(rlevel),self$children)
-    foreach ( new.root in new.roots )
-    {
-
+    #work here
     new.root <- get(as.character(rlevel),self$children)
     new.root <- clone(new.root[[1]])
     new.root$isRoot = TRUE
@@ -165,11 +163,11 @@ printNode <- function(node,prefix)
 {
   if(is.null(node$distance))
   {
-    msg <- sprintf("%s[%2d]: %s (ROOT)\n",prefix,node$level,node$row);
+    msg <- sprintf("%s[%2d]: %s (ROOT)\n",prefix,node$level,node$id);
   }
   else
   {
-    msg <- sprintf("%s[%2d]: %3d (d=%s)\n",prefix,node$level,node$row,node$distance);
+    msg <- sprintf("%s[%2d]: %3d (d=%s)\n",prefix,node$level,node$id,node$distance);
   }
   cat(noquote(msg));
   for( level in ls(node$children ) )
@@ -185,10 +183,10 @@ printNode <- function(node,prefix)
 #' @export
 nodeToDataframe <- function(node)
 {
-  p <- ifelse(node$isRoot, NA, node$parent$row)
+  p <- ifelse(node$isRoot, NA, node$parent$id)
   d <- ifelse(node$isRoot, NA, node$distance)
-  c <- node$n.cluster
-  rval <- data.frame( row=node$row, level=node$level, parent=p, distance=d, n.cluster=c )
+  nc <- node$n.cluster
+  rval <- data.frame( id=node$id, level=node$level, parent=p, distance=d, n.cluster=nc )
 
   for(level in ls(node$children))
   {
@@ -224,10 +222,10 @@ addToDendrogram <- function(node,dend,nodes,clusters,labels)
       addToDendrogram(child,dend,nodes,clusters,labels)
     }
 
-    knr <- as.character(node$row)
+    knr <- as.character(node$id)
     if(exists(knr,nodes)) { a <- get(knr,nodes) } else { a <- 1 + length(ls(nodes)); assign(knr,a,nodes) }
 
-    kcr <- as.character(child$row)
+    kcr <- as.character(child$id)
     if(exists(kcr,nodes)) { b <- get(kcr,nodes) } else { b <- 1 + length(ls(nodes)); assign(kcr,b,nodes) }
 
     ka <- as.character(a)
@@ -254,14 +252,14 @@ addToDendrogram <- function(node,dend,nodes,clusters,labels)
     if( a > 0 )
     {
       dend$order <- c(dend$order, a)
-      if(is.null(labels)) { dend$labels[a] <- as.character(node$row) }
-      else                { dend$labels[a] <- labels[node$row] }
+      if(is.null(labels)) { dend$labels[a] <- as.character(node$id) }
+      else                { dend$labels[a] <- labels[node$id] }
     }
     if( b > 0 )
     {
       dend$order <- c(dend$order, b)
-      if(is.null(labels)) { dend$labels[b] <- as.character(child$row) }
-      else                { dend$labels[b] <- labels[child$row] }
+      if(is.null(labels)) { dend$labels[b] <- as.character(child$id) }
+      else                { dend$labels[b] <- labels[child$id] }
     }
 
     assign(ka,-dend$count, clusters)
